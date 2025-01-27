@@ -1,0 +1,10 @@
+NAME		Note
+bass		36
+ride cymbal	51
+crash cymbal 1	49
+crash cymbal 2	57
+low tom		48
+mid tom		47
+high tom	43
+snare drum	38
+hi hat		60, 26, 25, 24, 22

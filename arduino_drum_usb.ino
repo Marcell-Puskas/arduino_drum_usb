@@ -1,138 +1,167 @@
 #include <USB-MIDI.h>
 
-#define PEDAL0 A0
-#define PEDAL1 A1
+/* CONFIGURATION */
 
-int p0, p1;
-bool p0r, p1r;
-int p0trcl = 820;
-int p0trop = 810;
-int p1trcl = 50;
-int p1trop = 60;
+#define DEFAULTMODE MIDIMODE // MIDIMODE or PRINTMODE
 
-const int bass_note = 36;
+const int bassPedalPin = A0;
+const int bassNote = 36;
+const int bassPedalPressThreshold = 820;
+const int bassPedalReleaseThreshold = 810;
 
-const int in_num = 7;
-const int in_pins[] = {3, 4, 5, 6, 7, 8, 9};
-const int in_notes[] = {51, 49, 57, 48, 47, 43, 38};
-int in_read[7];
-bool in_state[7];
-long in_timeouts[7];
+const int hihatPedalPin = A1;
+const int hihatDigitalPin = 10;
+const int hihatNoteCount = 5;
+const int hihatNotes[] = {60, 26, 25, 24, 22};
+const int hihatThresholds[] = {664, 498, 332, 166, 0};
 
-const int hi_pin = 10;
-int hi_num = 5;
-const int hi_notes[] = {60, 26, 25, 24, 22};
-const int hi_ranges[] = {664, 498, 332, 166, 0};
-int hi_read;
-bool hi_state;
-long hi_timeout;
+const int digitalInputCount = 7;
+const int digitalInputPins[] = {2, 3, 4, 5, 6, 7, 8};
+const int digitalInputNotes[] = {51, 49, 57, 48, 47, 43, 38};
 
-int timeout_duration = 50;
+const int inputTimeoutDuration = 50;
 
 /*
-3 ride cymbal 51
-4 crash cymbal 1 49
-5 crash cymbal 2 57
-6 low tom 48
-7 mid tom 47
-8 high tom 43
-9 snare drum 38
-10 hi hat 60, 26, 25, 24, 22
+INPUT   NAME            NOTE(S)
+A0      bass            36
+3       crash cymbal 1  49
+4       crash cymbal 2  57
+5       ride cymbal     51
+6       low tom         48
+7       mid tom         47
+8       high tom        43
+9       snare drum      38
+10,A1   hi hat          60, 26, 25, 24, 22
 */
 
-char until = ';';
-char mode = 'm';
+/* Variables */
+
+int bassPedalValue;
+bool bassPedalPressed;
+
+int HihatPedalValue;
+
+int hihatValue;
+long hihatTimeout;
+
+int digitalInputValues[7];
+bool digitalInputsPressed[7];
+long digitalInputTimeouts[7];
+
+enum Modes
+{
+    MIDIMODE,
+    PRINTMODE
+};
+
+enum Modes selectedMode = DEFAULTMODE;
 
 USBMIDI_CREATE_DEFAULT_INSTANCE();
 
+void readSerialMode()
+{
+    if (Serial.available())
+    {
+        switch (Serial.read())
+        {
+        case 'm':
+            selectedMode = MIDIMODE;
+            break;
+        case 'p':
+            selectedMode = PRINTMODE;
+            break;
+        }
+    }
+}
+
+void readValues()
+{
+    bassPedalValue = analogRead(bassPedalPin);
+    HihatPedalValue = analogRead(hihatPedalPin);
+    for (int i = 0; i < digitalInputCount; i++)
+    {
+        digitalInputValues[i] = digitalRead(digitalInputPins[i]);
+    }
+    hihatValue = digitalRead(hihatDigitalPin);
+}
+
+void serialPrintValues()
+{
+    Serial.print(bassPedalValue);
+    Serial.print("\t");
+    Serial.print(HihatPedalValue);
+    for (int i = 0; i < digitalInputCount; i++)
+    {
+        Serial.print("\t");
+        Serial.print(digitalInputValues[i]);
+    }
+    Serial.print("\t");
+    Serial.println(hihatValue);
+}
+
+void sendMidiValues()
+{
+    if (bassPedalValue > bassPedalPressThreshold && !bassPedalPressed)
+    {
+        MIDI.sendNoteOn(bassNote, 127, 1);
+        bassPedalPressed = true;
+    }
+    else if (bassPedalValue < bassPedalReleaseThreshold)
+    {
+        bassPedalPressed = false;
+    }
+
+    if (hihatValue == LOW)
+    {
+        if (hihatTimeout + inputTimeoutDuration < millis())
+            for (int i = 0; i < hihatNoteCount; i++)
+            {
+                if (HihatPedalValue > hihatThresholds[i])
+                {
+                    MIDI.sendNoteOn(hihatNotes[i], 127, 1);
+                    break;
+                }
+            }
+        hihatTimeout = millis();
+    }
+
+    for (int i = 0; i < digitalInputCount; i++)
+    {
+        if (digitalInputValues[i] == LOW)
+        {
+            if (digitalInputTimeouts[i] + inputTimeoutDuration < millis())
+            {
+                MIDI.sendNoteOn(digitalInputNotes[i], 127, 1);
+            }
+            digitalInputTimeouts[i] = millis();
+        }
+    }
+}
+
 void setup()
 {
-    for (int pini = 0; pini < in_num; pini++)
+    for (int pini = 0; pini < digitalInputCount; pini++)
     {
-        pinMode(in_pins[pini], INPUT_PULLUP);
+        pinMode(digitalInputPins[pini], INPUT_PULLUP);
     }
-    pinMode(hi_pin, INPUT_PULLUP);
+    pinMode(hihatDigitalPin, INPUT_PULLUP);
     MIDI.begin(MIDI_CHANNEL_OMNI);
     Serial.begin(115200);
 }
 
 void loop()
 {
-    if(Serial.available())
+    readSerialMode();
+
+    readValues();
+
+    if (selectedMode == MIDIMODE)
     {
-        switch (Serial.read())
-        {
-            case 'm': mode = 'm'; break;
-            case 'p': mode = 'p'; break;
-        }
+        sendMidiValues();
     }
 
-	p0 = analogRead(PEDAL0);
-	p1 = analogRead(PEDAL1);
-    for (int i = 0; i < in_num; i++)
+    if (selectedMode == PRINTMODE)
     {
-        in_read[i] = digitalRead(in_pins[i]);
-    }
-    hi_read = digitalRead(hi_pin);
-
-    if(mode == 'm')
-    {
-        if(p0 > p0trcl && !p0r)
-        {
-            MIDI.sendNoteOn(bass_note, 127, 1);
-            p0r = true;
-        }
-        else if(p0 < p0trop)
-        {
-            p0r = false;
-        }
-
-        if(hi_read == LOW)
-        {   
-            if(hi_timeout + timeout_duration < millis())
-            for(int i = 0; i < hi_num; i++)
-            {
-                if(p1 > hi_ranges[i])
-                {
-                    MIDI.sendNoteOn(hi_notes[i], 127, 1);
-                    break;
-                }
-            }
-            hi_state = true;
-            hi_timeout = millis();
-        }
-        /* else if(hi_read == HIGH && hi_timeout + timeout_duration < millis())
-        {
-            hi_state = false;
-        } */
-
-        for (int i = 0; i < in_num; i++)
-        {
-            if(in_read[i] == LOW)
-            {
-                if(in_timeouts[i] + timeout_duration < millis())
-                    MIDI.sendNoteOn(in_notes[i], 127, 1);
-                in_state[i] = true;
-                in_timeouts[i] = millis();
-            }
-            /* else if(in_read[i] == HIGH)
-            {
-                in_state[i] = false;
-            } */
-        }
-    }
-
-    if(mode == 'p')
-    {
-        Serial.print(p0);
-        Serial.print("\t");
-        Serial.print(p1);
-        for (int i = 0; i < in_num; i++)
-        {
-            Serial.print("\t");
-            Serial.print(in_read[i]);
-        }
-        Serial.print("\t");
-        Serial.println(hi_read);
+        serialPrintValues();
     }
 }
