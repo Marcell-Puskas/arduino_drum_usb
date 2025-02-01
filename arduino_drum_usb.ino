@@ -24,10 +24,11 @@ USBMIDI_CREATE_DEFAULT_INSTANCE();
 
 long constrainedMap(long x, long in_min, long in_max, long out_min, long out_max)
 {
-    return map(
-        constrain(x, in_min, in_max),
-        in_min, in_max, out_min, out_max
-    );
+    return constrain(
+      map(x, in_min, in_max, out_min, out_max), 
+      out_min, 
+      out_max
+      );
 }
 
 void readSerialMode()
@@ -66,6 +67,7 @@ void serialPrintValues()
         Serial.print("\t");
         Serial.print(digitalInputValues[i]);
     }
+    Serial.println();
 }
 
 void sendMidiValues()
@@ -81,7 +83,7 @@ void sendMidiValues()
     }
 
     int hihatPedalMapped = constrainedMap(hihatPedalValue, hihatUpThreshold, hihatDownThreshold, 0, 127);
-    int hihatPedalPerviousMapped = constrainedMap(hihatPedalValue, hihatUpThreshold, hihatDownThreshold, 0, 127);
+    int hihatPedalPerviousMapped = constrainedMap(hihatPedalPervious, hihatUpThreshold, hihatDownThreshold, 0, 127);
     if (
       abs(hihatPedalValue - hihatPedalPervious) > pedalSensitivity &&
       hihatPedalMapped != hihatPedalPerviousMapped
@@ -111,9 +113,6 @@ void setup()
     }
     MIDI.begin(MIDI_CHANNEL_OMNI);
     Serial.begin(115200);
-
-    MIDI.sendControlChange(4, -1, 1);
-    MIDI.sendControlChange(4, 1000, 1);
 }
 
 void loop()

@@ -8,10 +8,10 @@ const int bassPedalPressThreshold = 820;
 const int bassPedalReleaseThreshold = 810;
 
 const int hihatPedalPin = A1;
-const int hihatDownThreshold = 830;
-const int hihatUpThreshold = 120;
+const int hihatDownThreshold = 125;
+const int hihatUpThreshold = 860;
 
-const int digitalInputCount = 6;
+const int digitalInputCount = 7;
 const int digitalInputPins[] = {2, 3, 4, 5, 6, 7, 8};
 const int digitalInputNotes[] = {44, 49, 51, 48, 47, 43, 38};
 
