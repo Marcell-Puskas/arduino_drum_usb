@@ -4,8 +4,8 @@
 
 const int bassPedalPin = A0;
 const int bassNote = 36;
-const int bassPedalPressThreshold = 820;
-const int bassPedalReleaseThreshold = 810;
+const int bassPedalFirstThreshold = 810;
+const int bassPedalSecondThreshold = 820;
 
 const int hihatPedalPin = A1;
 const int hihatDownThreshold = 830;

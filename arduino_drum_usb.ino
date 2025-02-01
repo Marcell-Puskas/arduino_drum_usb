@@ -5,6 +5,8 @@
 int bassPedalValue;
 bool bassPedalPressed;
 
+long bassPedalPressStartTime;
+
 int hihatPedalValue;
 int hihatPedalPervious;
 
@@ -70,14 +72,17 @@ void serialPrintValues()
 
 void sendMidiValues()
 {
-    if (bassPedalValue > bassPedalPressThreshold && !bassPedalPressed)
+    if (bassPedalValue > bassPedalFirstThreshold && !bassPedalPressed)
     {
-        MIDI.sendNoteOn(bassNote, 127, 1);
         bassPedalPressed = true;
+        bassPedalPressStartTime = millis();
     }
-    else if (bassPedalValue < bassPedalReleaseThreshold)
+    else if (bassPedalValue > bassPedalSecondThreshold && bassPedalPressed)
     {
+        int bassPedalTime = millis() - bassPedalPressStartTime;
+        MIDI.sendNoteOn(bassNote, 127, 1);
         bassPedalPressed = false;
+        Serial.Print(bassPedalTime);
     }
 
     int hihatPedalMapped = constrainedMap(hihatPedalValue, hihatUpThreshold, hihatDownThreshold, 0, 127);
