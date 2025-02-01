@@ -7,4 +7,4 @@ low tom		48
 mid tom		47
 high tom	43
 snare drum	38
-hi hat		60, 26, 25, 24, 22
+hi hat		44
