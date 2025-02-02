@@ -5,10 +5,8 @@
 int bassPedalValue;
 bool bassPedalPressed;
 
-int HihatPedalValue;
-
-int hihatValue;
-long hihatTimeout;
+int hihatPedalValue;
+int hihatPedalPervious;
 
 int digitalInputValues[7];
 bool digitalInputsPressed[7];
@@ -23,6 +21,15 @@ enum Modes
 enum Modes selectedMode = DEFAULTMODE;
 
 USBMIDI_CREATE_DEFAULT_INSTANCE();
+
+long constrainedMap(long x, long in_min, long in_max, long out_min, long out_max)
+{
+    return constrain(
+      map(x, in_min, in_max, out_min, out_max), 
+      out_min, 
+      out_max
+      );
+}
 
 void readSerialMode()
 {
@@ -43,26 +50,24 @@ void readSerialMode()
 void readValues()
 {
     bassPedalValue = analogRead(bassPedalPin);
-    HihatPedalValue = analogRead(hihatPedalPin);
+    hihatPedalValue = analogRead(hihatPedalPin);
     for (int i = 0; i < digitalInputCount; i++)
     {
         digitalInputValues[i] = digitalRead(digitalInputPins[i]);
     }
-    hihatValue = digitalRead(hihatDigitalPin);
 }
 
 void serialPrintValues()
 {
     Serial.print(bassPedalValue);
     Serial.print("\t");
-    Serial.print(HihatPedalValue);
+    Serial.print(hihatPedalValue);
     for (int i = 0; i < digitalInputCount; i++)
     {
         Serial.print("\t");
         Serial.print(digitalInputValues[i]);
     }
-    Serial.print("\t");
-    Serial.println(hihatValue);
+    Serial.println();
 }
 
 void sendMidiValues()
@@ -77,18 +82,14 @@ void sendMidiValues()
         bassPedalPressed = false;
     }
 
-    if (hihatValue == LOW)
-    {
-        if (hihatTimeout + inputTimeoutDuration < millis())
-            for (int i = 0; i < hihatNoteCount; i++)
-            {
-                if (HihatPedalValue > hihatThresholds[i])
-                {
-                    MIDI.sendNoteOn(hihatNotes[i], 127, 1);
-                    break;
-                }
-            }
-        hihatTimeout = millis();
+    int hihatPedalMapped = constrainedMap(hihatPedalValue, hihatUpThreshold, hihatDownThreshold, 0, 127);
+    int hihatPedalPerviousMapped = constrainedMap(hihatPedalPervious, hihatUpThreshold, hihatDownThreshold, 0, 127);
+    if (
+      abs(hihatPedalValue - hihatPedalPervious) > pedalSensitivity &&
+      hihatPedalMapped != hihatPedalPerviousMapped
+    ){
+      MIDI.sendControlChange(4, hihatPedalMapped, 1);
+      hihatPedalPervious = hihatPedalValue;
     }
 
     for (int i = 0; i < digitalInputCount; i++)
@@ -110,7 +111,6 @@ void setup()
     {
         pinMode(digitalInputPins[pini], INPUT_PULLUP);
     }
-    pinMode(hihatDigitalPin, INPUT_PULLUP);
     MIDI.begin(MIDI_CHANNEL_OMNI);
     Serial.begin(115200);
 }
