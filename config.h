@@ -1,6 +1,8 @@
 /* CONFIGURATION */
 
 #define DEFAULTMODE MIDIMODE // MIDIMODE or PRINTMODE
+#define CHANNEL 1       // This channel will be used to send MIDI data
+#define VELOCITY 127    // This is the default velocity that will be sent
 
 const int bassPedalPin = A0;
 const int bassNote = 36;

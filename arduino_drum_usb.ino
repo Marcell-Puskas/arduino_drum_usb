@@ -74,7 +74,7 @@ void sendMidiValues()
 {
     if (bassPedalValue > bassPedalPressThreshold && !bassPedalPressed)
     {
-        MIDI.sendNoteOn(bassNote, 127, 1);
+        MIDI.sendNoteOn(bassNote, VELOCITY, CHANNEL);
         bassPedalPressed = true;
     }
     else if (bassPedalValue < bassPedalReleaseThreshold)
@@ -88,7 +88,7 @@ void sendMidiValues()
       abs(hihatPedalValue - hihatPedalPervious) > pedalSensitivity &&
       hihatPedalMapped != hihatPedalPerviousMapped
     ){
-      MIDI.sendControlChange(4, hihatPedalMapped, 1);
+      MIDI.sendControlChange(4, hihatPedalMapped, CHANNEL);
       hihatPedalPervious = hihatPedalValue;
     }
 
@@ -98,7 +98,7 @@ void sendMidiValues()
         {
             if (digitalInputTimeouts[i] + inputTimeoutDuration < millis())
             {
-                MIDI.sendNoteOn(digitalInputNotes[i], 127, 1);
+                MIDI.sendNoteOn(digitalInputNotes[i], VELOCITY, CHANNEL);
             }
             digitalInputTimeouts[i] = millis();
         }
